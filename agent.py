@@ -15,8 +15,14 @@ import numpy as np
 
 # the boards are of size 10 because index 0 isn't used
 boards = np.zeros((10, 10), dtype="int8")
+# move = np.zeros((10,10), dtype="int8")
+best_move = np.ones(81, dtype="int8")
+current_move = 1
 s = [".","X","O"]
 curr = 0 # this is the current board to play in
+
+MIN_EVAL = -1000000 #alpha
+MAX_EVAL =  1000000 #beta
 
 # print a row
 def print_board_row(bd, a, b, c, i, j, k):
@@ -42,15 +48,54 @@ def print_board(board):
 # choose a move to play
 def play():
     # print_board(boards)
-
+    print(f"Playing move in board: {curr}. Current move is {current_move}")
     # just play a random move for now
-    n = np.random.randint(1,9)
-    while boards[curr][n] != 0:
-        n = np.random.randint(1,9)
+    # n = np.random.randint(1,9)
+    # while boards[curr][n] != 0:
+        # n = np.random.randint(1,9)
+    alphabeta(1, current_move, 1, curr, MIN_EVAL, MAX_EVAL, best_move)
+    return_val = best_move[current_move]
+    print(f"playing {return_val} in grid {curr}", )
+    print("Returning: ",  return_val)
+    place(curr, return_val, 1)
+    
+    return return_val
 
-    # print("playing", n)
-    place(curr, n, 1)
-    return n
+def alphabeta( player, current_move, cell, board, alpha, beta, best_move ):
+    print(f"Testing player {player}, move [{board}][{best_move[cell]}], sub-grid {board}, alpha {alpha}, beta {beta}")
+    best_eval = MIN_EVAL
+
+    # If enemy wins, return a very low eval
+    if game_won(2-player+1):
+        print(f"Player {2-player+1} wins with this move: [{board}][{best_move[cell]}] ")
+        return -1000 + cell
+
+    this_move = 0
+    for r in range(1,10):
+        print(f"Trying square {r} in board {board}: {boards[board][r]}")
+        if boards[board][r] == 0:
+            print("Testing empty cell: ", boards[board][r])
+            this_move = r
+            boards[board][this_move] = player
+            if (cell < 9):
+                this_eval = -alphabeta((2-player+1), current_move, cell+1, r, -beta, -alpha, best_move)
+                print(f'Best Eval: {best_eval} This Eval: {this_eval}')
+                boards[board][this_move] = 0
+                if this_eval > best_eval:
+                    best_move[current_move] = this_move
+                    best_eval = this_eval
+                    if best_eval > alpha:
+                        alpha = best_eval
+                        if alpha >= beta:
+                            print("Cutoff")
+                            return (alpha)
+    if this_move == 0:
+        print(f"No legal moves for {player}")
+        return (0)
+    else:
+        print(f"Alpha return for move [{board}][{best_move[cell]}] by player {player}")
+        return (alpha)
+    pass
 
 # place a move in the global boards
 def place( board, num, player ):
@@ -58,9 +103,34 @@ def place( board, num, player ):
     curr = num
     boards[board][num] = player
 
+def board_won(p, bd):
+    return(  ( boards[bd][1] == p and boards[bd][2] == p and boards[bd][3] == p)
+           or( boards[bd][4] == p and boards[bd][5] == p and boards[bd][6] == p )
+           or( boards[bd][7] == p and boards[bd][8] == p and boards[bd][9] == p )
+           or( boards[bd][1] == p and boards[bd][4] == p and boards[bd][7] == p )
+           or( boards[bd][2] == p and boards[bd][5] == p and boards[bd][8] == p )
+           or( boards[bd][3] == p and boards[bd][6] == p and boards[bd][9] == p )
+           or( boards[bd][1] == p and boards[bd][5] == p and boards[bd][9] == p )
+           or( boards[bd][3] == p and boards[bd][5] == p and boards[bd][7] == p ))
+
+
+def game_won( p ):
+    print(f"Checking if player {p} wins with this move")
+    return(  ( board_won(p, 1) and board_won(p, 2) and board_won(p, 3))
+           or( board_won(p, 4) and board_won(p, 5) and board_won(p, 6))
+           or( board_won(p, 7) and board_won(p, 8) and board_won(p, 9) )
+           or( board_won(p, 1) and board_won(p, 4) and board_won(p, 7) )
+           or( board_won(p, 2) and board_won(p, 5) and board_won(p, 8) )
+           or( board_won(p, 3) and board_won(p, 6) and board_won(p, 9) )
+           or( board_won(p, 1) and board_won(p, 5) and board_won(p, 9) )
+           or( board_won(p, 3) and board_won(p, 5) and board_won(p, 7) ))
+
+
+
 # read what the server sent us and
 # parse only the strings that are necessary
 def parse(string):
+    global current_move
     if "(" in string:
         command, args = string.split("(")
         args = args.split(")")[0]
@@ -79,6 +149,8 @@ def parse(string):
     if command == "second_move":
         # place the first move (randomly generated for opponent)
         place(int(args[0]), int(args[1]), 2)
+        print(f"First move: Enemy placed {args[1]} in board {args[0]}.")
+        current_move = 2
         return play()  # choose and return the second move
 
     # third_move(K,L,M) means that the first and second move were
@@ -86,9 +158,16 @@ def parse(string):
     # and we are expected to return the third move.
     elif command == "third_move":
         # place the first move (randomly generated for us)
+        #potential TODO: dont randomly generate first move - choose methodically
+        print(f"First move: I placed {args[1]} in board {args[0]}.")
         place(int(args[0]), int(args[1]), 1)
+
+        print(f"Second move: Enemy placed {args[2]} in board {curr}.")
         # place the second move (chosen by opponent)
         place(curr, int(args[2]), 2)
+        
+        # global current_move
+        current_move = 3
         return play() # choose and return the third move
 
     # nex_move(M) means that the previous move was into
@@ -96,7 +175,11 @@ def parse(string):
     # and we are expected to return the next move.
     elif command == "next_move":
         # place the previous move (chosen by opponent)
+        print(f"Last move: Enemy placed {args[0]} in board {curr}")
         place(curr, int(args[0]), 2)
+        
+        # global current_move
+        current_move = current_move + 2
         return play() # choose and return our next move
 
     elif command == "win":

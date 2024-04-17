@@ -35,10 +35,13 @@ def main():
         if is_human[player]:
             print_board( board )
             move[m] = input('Enter move [1-9]: ')
+            #While move is invalid, ask for input again
             while move[m] < 1 or move[m] > 9 or board[move[m]] != EMPTY:
                 move[m] = input('Enter move [1-9]: ')
         else:
+            print("Calling alphabeta the first time with player")
             alphabeta( player,m,board,MIN_EVAL,MAX_EVAL,best_move )
+            print(f"Best Move for Move {m}: {best_move[m]}")
             move[m] = best_move[m]
         game_status = make_move( player, m, move, board )
 
@@ -57,10 +60,11 @@ def print_board( bd ):
 #   Negamax formulation of alpha-beta search
 #
 def alphabeta( player, m, board, alpha, beta, best_move ):
-
+    print(f"Testing player {player}, move {m}, sub-grid {board}, alpha {alpha}, beta {beta}")
     best_eval = MIN_EVAL
 
     if game_won( 1-player, board ):   # LOSS
+        print(f"Enemy wins with this move: [{board}][{m}] ")
         return -1000 + m  # better to win faster (or lose slower)
 
     this_move = 0
@@ -70,17 +74,21 @@ def alphabeta( player, m, board, alpha, beta, best_move ):
             board[this_move] = player # make move
             this_eval = -alphabeta(1-player,m+1,board,-beta,-alpha,best_move)
             board[this_move] = EMPTY  # undo move
+            print(f'Best Eval: {best_eval} This Eval: {this_eval}')
             if this_eval > best_eval:
                 best_move[m] = this_move
                 best_eval = this_eval
                 if best_eval > alpha:
                     alpha = best_eval
                     if alpha >= beta: # cutoff
+                        print("Cutoff")
                         return( alpha )
 
     if this_move == 0:  # no legal moves
+        print("No legal moves")
         return( 0 )     # DRAW
     else:
+        print("Alpha")
         return( alpha )
 
 #**********************************************************
