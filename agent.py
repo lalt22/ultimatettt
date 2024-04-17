@@ -7,6 +7,7 @@
 import socket
 import sys
 import numpy as np
+import typing
 
 # a board cell can hold:
 #   0 - Empty
@@ -63,11 +64,12 @@ def play():
 
 def alphabeta( player, current_move, cell, board, alpha, beta, best_move ):
     print(f"Testing player {player}, move [{board}][{best_move[cell]}], sub-grid {board}, alpha {alpha}, beta {beta}")
+    print_board(boards)
     best_eval = MIN_EVAL
 
     # If enemy wins, return a very low eval
     if game_won(2-player+1):
-        print(f"Player {2-player+1} wins with this move: [{board}][{best_move[cell]}] ")
+        print(f"Player {2-player+1} wins with this move: [{board}][{best_move[cell]}]")
         return -1000 + cell
 
     this_move = 0
@@ -77,20 +79,22 @@ def alphabeta( player, current_move, cell, board, alpha, beta, best_move ):
             print("Testing empty cell: ", boards[board][r])
             this_move = r
             boards[board][this_move] = player
+            print(f"Set cell [{board}][{this_move}] to {boards[board][this_move]}\n")
             if (cell < 9):
                 this_eval = -alphabeta((2-player+1), current_move, cell+1, r, -beta, -alpha, best_move)
                 print(f'Best Eval: {best_eval} This Eval: {this_eval}')
                 boards[board][this_move] = 0
+                print(f"Unset cell [{board}][{this_move}] to {boards[board][this_move]}")
                 if this_eval > best_eval:
                     best_move[current_move] = this_move
                     best_eval = this_eval
                     if best_eval > alpha:
                         alpha = best_eval
                         if alpha >= beta:
-                            print("Cutoff")
+                            print("Cutoff\n")
                             return (alpha)
     if this_move == 0:
-        print(f"No legal moves for {player}")
+        print(f"No legal moves for {player}\n")
         return (0)
     else:
         print(f"Alpha return for move [{board}][{best_move[cell]}] by player {player}")
@@ -103,7 +107,7 @@ def place( board, num, player ):
     curr = num
     boards[board][num] = player
 
-def board_won(p, bd):
+def board_won(p: int, bd: int):
     return(  ( boards[bd][1] == p and boards[bd][2] == p and boards[bd][3] == p)
            or( boards[bd][4] == p and boards[bd][5] == p and boards[bd][6] == p )
            or( boards[bd][7] == p and boards[bd][8] == p and boards[bd][9] == p )
@@ -114,16 +118,12 @@ def board_won(p, bd):
            or( boards[bd][3] == p and boards[bd][5] == p and boards[bd][7] == p ))
 
 
-def game_won( p ):
+def game_won( p: int ):
     print(f"Checking if player {p} wins with this move")
-    return(  ( board_won(p, 1) and board_won(p, 2) and board_won(p, 3))
-           or( board_won(p, 4) and board_won(p, 5) and board_won(p, 6))
-           or( board_won(p, 7) and board_won(p, 8) and board_won(p, 9) )
-           or( board_won(p, 1) and board_won(p, 4) and board_won(p, 7) )
-           or( board_won(p, 2) and board_won(p, 5) and board_won(p, 8) )
-           or( board_won(p, 3) and board_won(p, 6) and board_won(p, 9) )
-           or( board_won(p, 1) and board_won(p, 5) and board_won(p, 9) )
-           or( board_won(p, 3) and board_won(p, 5) and board_won(p, 7) ))
+    for i in range(1,10):
+        if (board_won(p, i)):
+            return True
+    return False
 
 
 
