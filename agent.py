@@ -4,6 +4,21 @@
 #  COMP3411/9814 Artificial Intelligence
 #  CSE, UNSW
 
+'''
+Question: Briefly describe how your program works, including any algorithms and data structures employed, and explain any design decisions you made along the way.
+
+Algorithm:
+    My program utilises alpha-beta pruning to search through the game tree efficiently and in order to represent all moves and counter moves assuming both me and my enemy are playing optimally. To represent this algorithm, I made use of standard Python DS including arrays and dicts. Alpha beta pruning allows me to cut down significantly on the branching factor of the game tree by pruning immediately non-feasible moves from the representation of the tree, thus allowing me to look deeper into the game tree with minimal time resources.
+
+Design Choices and Changes:
+    - Initially modelled the alphabeta algorithm off the ttt.py negamax formulation, however this quickly became convoluted and bulky with the tracking of the best_move array. I decided to change the algorithm so that it only returns the evaluation amount of the move, minimising the computation carried out within the algorithm itself. Instead, as potential optimal/viable moves are uncovered with the algorithm, they are instead added to a dictionary mapping the move value to the evaluation and allowing me to either randomise or select the maximum move
+    - Utility Evaluation: was initially done within the alphabeta algorithm itself, making it difficult to read and easy to misunderstand. I chose to separate move evaluation into its own function ane evaluate moves entirely based on whether they take us or the enemy closer to achieving a win
+
+Potential Future Changes
+    - I suck at tic-tac-toe and lack a lot of strategic knowledge on how to play the game and choose optimal moves. As such, my algorithm is quite "defensive", simply avoiding obviously wrong choices, but not necessarily making strategically optimal choices either. Further research into proper strategies to evaluate a move holistically combined with the alphabeta algorithm would allow my program to search deeper into the game tree and also make more high-risk high-reward moves in order to win against harder opponents
+
+'''
+
 import socket
 import sys
 import numpy as np
@@ -17,14 +32,12 @@ import copy
 
 # the boards are of size 10 because index 0 isn't used
 boards = np.zeros((10, 10), dtype="int8")
-# move = np.zeros((10,10), dtype="int8")
-best_move = np.ones(81, dtype="int8")
 current_move = 1
 s = [".","X","O"]
 curr = 0 # this is the current board to play in
 
-MIN_EVAL = -1000000 
-MAX_EVAL =  1000000 
+MAX_EVAL =  100000000 
+MAX_DEPTH = 5
 
 # print a row
 def print_board_row(bd, a, b, c, i, j, k):
@@ -48,177 +61,136 @@ def print_board(board):
     print()
 
 # choose a move to play
+'''
+Uses alphabeta minimax pruning to select the possible moves
+'''
 def play():
-    # print_board(boards)
-    print(f"Playing move in board: {curr}.")
-    # just play a random move for now
-    # n = np.random.randint(1,9)
-    # while boards[curr][n] != 0:
-        # n = np.random.randint(1,9)
-    alphabeta(1, current_move, 0, curr, MIN_EVAL, MAX_EVAL, best_move)
-    print(f"Placing move: [{curr}]{best_move[current_move]}")
-    place(curr, best_move[current_move], 1)
+    moves = {}
+    best_eval = -MAX_EVAL - MAX_DEPTH
+
+    for cell in range(1,10):
+        move = cell
+        if (boards[curr][move] == 0):
+            boards[curr][move] = 1
+            util, win = utility_eval(curr, cell, 0)
+            alpha = (-MAX_EVAL+MAX_DEPTH)-1
+            beta =  MAX_EVAL+MAX_DEPTH+1
+            eval = alphabeta(2, current_move, 1, cell, alpha, beta, win, util)
+            boards[curr][move] = 0
+            if (eval > best_eval):
+                best_eval = eval
+                moves.clear()
+                moves.update({move: best_eval})
+            elif eval == best_eval:
+                moves[move] = eval
+            if (best_eval > beta):
+                moves[move] = eval
+                break
+    # print("MOVES: ", moves)
+    final_move = max(moves, key=moves.get)   
+    # print(f"Placing move: [{curr}]{final_move}. Had eval of: {moves[final_move]}")
+    place(curr, final_move, 1)
     
-    return best_move[current_move]
-
-# def alphabeta( player, current_move, move_depth, cell, board, alpha, beta, best_move ):
-#     print_board(boards)
-#     print(f"Testing player {player} making move [{board}][{cell}], alpha {alpha}, beta {beta} depth {move_depth}")
+    return final_move
     
-#     best_eval = MIN_EVAL
 
-    
-#     for temp_cell in range(1,10):
-#         if (boards[board][temp_cell] == 0):
-#             # If enemy wins, return a very low eval
-#             boards[board][temp_cell] = (2-player+1)
-#             if game_won(2-player+1):
-#                 print(f"Player {2-player+1} wins with this move: [{board}][{cell}]")
-#                 boards[board][temp_cell] = 0
-#                 return -1000 + cell
-#             # If we win, return a very high eval
-#             boards[board][temp_cell] = (player)
-#             if (game_won(player)):
-#                 print(f"Player {player} wins with this move: [{board}][{cell}]")
-#                 boards[board][temp_cell] = 0
-#                 return 1000 + cell
-#             boards[board][temp_cell] = 0
-
-#     this_move = 0
-#     if (move_depth < 5):
-#         for r in range(1,10):
-#             print(f"Trying square {r} in board {board}: {boards[board][r]}")
-#             if boards[board][r] == 0:
-#                 print("Testing empty cell: ", boards[board][r])
-#                 this_move = r
-#                 boards[board][this_move] = player
-#                 print(f"Set cell [{board}][{this_move}] to {boards[board][this_move]}\n")
-#                 this_eval = -alphabeta((2-player+1), current_move, move_depth+ 1, cell, r, -beta, -alpha, best_move)
-#                 print(f'Best Eval: {best_eval} This Eval: {this_eval}')
-#                 boards[board][this_move] = 0
-#                 print(f"Unset cell [{board}][{this_move}] to {boards[board][this_move]}")
-#                 if this_eval > best_eval:
-#                     best_move[current_move] = this_move
-#                     best_eval = this_eval
-#                     if best_eval > alpha:
-#                         alpha = best_eval
-#                         if alpha >= beta:
-#                             print(f"Cutoff for move [{board}][{best_move[current_move]}] by player {player}\n")
-#                             return (alpha)
-#     else:
-#         print("Depth reached")
-#         return (alpha)
-#     if this_move == 0:
-#         print(f"No legal moves for {player}\n")
-#         return (0)
-#     else:
-#         print(f"Alpha return for move [{board}][{best_move[current_move]}] by player {player}")
-#         return (alpha)
-
-def alphabeta(player, current_move, depth, board, alpha, beta, best_move):
-    if depth == 0:
-        print("NEW MOVE EVALUATION")
-    print_board(boards)
-    print(f"Player {player} in board {board} at depth {depth}")
-
-    best_eval = MIN_EVAL
+#Possible combinations of cells to win a subgrid
+WINNING_CELLS = [
+    [1,2,3],
+    [4,5,6],
+    [7,8,9],
+    [1,4,7],
+    [2,5,8],
+    [3,6,9],
+    [1,5,9],
+    [7,5,3]
+]
 
 
-    if game_won(2-player+1):
-        return -1000 + depth
-    
-    #If enemy is one away from winning in current cell, occupy the cell
-    last_cell = is_one_away(2-player+1, board)
-    if last_cell:
-        print(f"Player {player} Blocking triple at [{board}][{last_cell}]")
-        if not is_one_away(2-player+1, last_cell):
-            best_move[current_move] = last_cell
-            return 100000
+'''
+Get the Heuristic Evaluation of a move. Must consider:
+    - If the move would be a winning move for us or the enemy
+    - If the move allows the enemy to win on the next move
+'''
+def utility_eval(board, cell, depth):
+    win = False
+    eval = 0
+    for triple in WINNING_CELLS:
+       #If I win
+        if (count_player_moves_in_triple(board, 1, triple) == 3):
+            eval = MAX_EVAL - depth
+            win = True
+        #IF enemy wins
+        elif (count_player_moves_in_triple(board, 2, triple) == 3):
+           eval = -2*MAX_EVAL - depth
+           win = True
+        #If enemy will win on next move, low eval
+        elif (count_player_moves_in_triple(board, 2, triple) == 2):
+            eval -= 3000
+        
+        #If I have a potential triple
+        elif (count_player_moves_in_triple(board, 1, triple) == 2):
+            #If enemy blocks, lower eval
+            if (count_player_moves_in_triple(board, 2, triple) == 1):
+                eval -= 4000
+            #Otherwise if i can win next round, high eval
+            else:
+                eval += 3000
+        #If we both have a move in the triple, just chuck in a small eval
+        elif (count_player_moves_in_triple(board, 1, triple) == 1 
+        and count_player_moves_in_triple(board, 2, triple) == 1):
+            eval += boards[board][cell]
+        
+    if not win:
+        #When board is sparse, eval middle cells more highly
+        eval += 75*boards[board][cell]
 
+    #Return evaluation and whether the move is a winning move
+    return [eval, win]
 
-    this_move = 0
-    if depth < 3:
-        for cell in range(1,10):
-            if boards[board][cell] == 0:
+'''
+Count number of moves by a player in a specific triple
+'''
+def count_player_moves_in_triple(board, player, triple):
+    count = 0
+    for i in triple:
+        if boards[board][i] == player:
+            count += 1
+    return count
 
-                if is_one_away(2-player+1, cell):
-                    this_eval = MIN_EVAL
-
-                else:
-                    print(f"Trying move [{board}][{cell}] for player {player}. Best Eval so far: {best_eval}")
-                    this_move = cell
-                    boards[board][this_move] = player
-                    this_eval = -alphabeta(2-player+1, current_move+1, depth + 1, cell, -beta, -alpha, best_move)
-                    boards[board][this_move] = 0
-                print(f"Player {player}. Eval of move [{board}][{cell}]: {this_eval}. Best Eval: {best_eval}")
-                if this_eval > best_eval:
-                    
-
-                    if depth == 0:
-                       
-                        best_move[current_move] = this_move
-                        best_eval = this_eval
-                        print(f"Setting best move for move {current_move} by player {player} to be [{board}][{this_move}]")
-
-                    if best_eval > alpha:
-                        alpha = best_eval
-
-                        if alpha > beta:
-                            return (alpha)
-    if this_move == 0:
-        return 0
-    else:
+'''
+Alphabeta pruning. Focuses on maximising the result for me (player 1) and minimising the result for the enemy (player 2)
+Uses the evaluation function to determine which moves to make. When an ideal minimising or maximising move is found, update alpha and beta
+respectively and return the evaluation
+'''
+def alphabeta(player, current_move, depth, board, alpha, beta, prev_move_win, acc_eval):
+    if (prev_move_win or depth >= MAX_DEPTH):
+        return acc_eval
+    best_eval = acc_eval
+    # print(f"Player {player} in board {board} at depth {depth}. BEST EVAL: {best_eval}")
+    for cell in range(1,10):
+        # print(f"Trying: [{board}][{cell}] for player {player}" )
+        if boards[board][cell] == 0:
+            boards[board][cell] = player
+            # print_board(boards)
+            utility, win = utility_eval(board, cell, depth)
+            # print(f"Returning eval {utility} for move [{board}][{cell}] for player {player} at depth {depth}")
+            this_eval = alphabeta(2-player+1, current_move, depth+1, cell, alpha, beta, win, acc_eval + utility)
+            # print(f"THIS EVAL: {this_eval}. BEST EVAL: {acc_eval}")
+            boards[board][cell] = 0
+            if (player == 1):
+                alpha = max(this_eval, alpha)
+            if (player == 2):
+                beta = min(this_eval, beta)
+            # print(f"NEW ALPHA: {alpha} NEW BETA: {beta}")
+            if (alpha >= beta):
+                # print("PRUNING")
+                return alpha
+    if (player == 1):
         return alpha
-
-
-# def alphabeta(player, depth, board, alpha, beta):
-#     if depth == 0:
-#         print("NEW MOVE EVALUATION")
-#     print_board(boards)
-#     print(f"Player {player} in board {board}")
-
-#     if game_won(1):
-#         return 10 - depth
-#     elif game_won(2):
-#         return depth - 10
+    if player == 2:
+        return beta
     
-#     moves = []
-#     if (depth < 3):
-#         for cell in range(1,10):
-#             print(f"Trying cell {cell} in board {board}")
-
-#             if boards[board][cell] == 0:
-#                 #Check if this allows enemy to make winning next move
-#                 if is_one_away(1, cell):
-#                     return 10 - depth
-#                 elif is_one_away(2, cell):
-#                     return depth - 10
-            
-#                 boards[board][cell] = player
-#                 move = alphabeta(2-player+1, depth+1, cell, alpha, beta)
-#                 boards[board][cell] = 0
-#                 if player == 1:
-#                     alpha = max(alpha, move)
-#                 else:
-#                     beta = min(beta, move)
-                
-#                 if alpha >= beta:
-#                     break
-
-#                 if depth == 0:
-#                     moves.append([(board, cell), move])
-#                 else:
-#                         moves.append(move)
-#     if not moves:
-#         return 0
-
-#     if depth == 0:
-#         return list(max(moves, key=lambda x: x[1])[0] if player == 1 else min(moves, key=lambda x: x[1])[0])
-#         # max(moves) if player == 1 else min(moves)
-#     else:
-#         return max(moves) if player == 1 else min(moves)
-
-
 
 # place a move in the global boards
 def place( board, num, player ):
@@ -226,44 +198,11 @@ def place( board, num, player ):
     curr = num
     boards[board][num] = player
 
-def is_one_away(p, bd):
-    if ((boards[bd] == p).sum() < 2):
-        return False
-    for cell in range(1, 10):
-        if boards[bd][cell] == 0:
-            # print(f"Seeing if [{bd}][{cell}] wins game for {p}")
-            boards[bd][cell] = p
-            if (game_won(p)):
-                boards[bd][cell] = 0
-                print(f"{p} can win if they make move [{bd}][{cell}]")
-                return cell
-            boards[bd][cell] = 0
-    return None
-
-def board_won(p: int, bd: int):
-    return(  ( boards[bd][1] == p and boards[bd][2] == p and boards[bd][3] == p)
-           or( boards[bd][4] == p and boards[bd][5] == p and boards[bd][6] == p )
-           or( boards[bd][7] == p and boards[bd][8] == p and boards[bd][9] == p )
-           or( boards[bd][1] == p and boards[bd][4] == p and boards[bd][7] == p )
-           or( boards[bd][2] == p and boards[bd][5] == p and boards[bd][8] == p )
-           or( boards[bd][3] == p and boards[bd][6] == p and boards[bd][9] == p )
-           or( boards[bd][1] == p and boards[bd][5] == p and boards[bd][9] == p )
-           or( boards[bd][3] == p and boards[bd][5] == p and boards[bd][7] == p ))
-
-
-def game_won( p: int ):
-    print(f"Checking if player {p} wins with this move")
-    for i in range(1,10):
-        if (board_won(p, i)):
-            return True
-    return False
-
-
-
 # read what the server sent us and
 # parse only the strings that are necessary
 def parse(string):
     global current_move
+   
     if "(" in string:
         command, args = string.split("(")
         args = args.split(")")[0]
@@ -292,10 +231,10 @@ def parse(string):
     elif command == "third_move":
         # place the first move (randomly generated for us)
         #potential TODO: dont randomly generate first move - choose methodically
-        print(f"First move: I placed {args[1]} in board {args[0]}.")
+        # print(f"First move: I placed {args[1]} in board {args[0]}.")
         place(int(args[0]), int(args[1]), 1)
 
-        print(f"Second move: Enemy placed {args[2]} in board {curr}.")
+        # print(f"Second move: Enemy placed {args[2]} in board {curr}.")
         # place the second move (chosen by opponent)
         place(curr, int(args[2]), 2)
         
@@ -308,7 +247,7 @@ def parse(string):
     # and we are expected to return the next move.
     elif command == "next_move":
         # place the previous move (chosen by opponent)
-        print(f"Last move: Enemy placed {args[0]} in board {curr}")
+        # print(f"Last move: Enemy placed {args[0]} in board {curr}")
         place(curr, int(args[0]), 2)
         
         # global current_move
